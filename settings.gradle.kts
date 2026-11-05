@@ -22,6 +22,10 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "StoreManagerPro"
 
 include(":app")
+include(":shared:domain")
+include(":shared:design-system")
+include(":apps:desktopApp")
+include(":shared:data")

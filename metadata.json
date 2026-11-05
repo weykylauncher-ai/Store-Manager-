@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Store Manager Pro",
+  "description": "Cross-platform retail and inventory management system for Windows and Android (Local-First, LAN-ready).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
