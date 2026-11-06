@@ -3,7 +3,8 @@ package com.storemanager.core.data
 import app.cash.sqldelight.db.SqlDriver
 
 class StoreDatabaseManager(
-    private val driverFactory: DatabaseDriverFactory
+    private val driverFactory: DatabaseDriverFactory,
+    private val databaseConstructor: (SqlDriver) -> StoreDatabase = { StoreDatabase(it) }
 ) {
     private var driver: SqlDriver? = null
     private var database: StoreDatabase? = null
@@ -12,15 +13,33 @@ class StoreDatabaseManager(
     fun getDatabase(): StoreDatabase {
         if (database == null) {
             val d = driverFactory.createDriver()
-            driver = d
-            database = StoreDatabase(d)
+            try {
+                database = databaseConstructor(d)
+                driver = d
+            } catch (t: Throwable) {
+                try { d.close() } catch (_: Throwable) {}
+                driver = null
+                database = null
+                throw t
+            }
         }
         return database!!
     }
 
     @Synchronized
+    fun getDriver(): SqlDriver {
+        if (driver == null) {
+            getDatabase()
+        }
+        return driver!!
+    }
+
+    @Synchronized
+    fun isOpen(): Boolean = driver != null
+
+    @Synchronized
     fun close() {
-        driver?.close()
+        try { driver?.close() } catch (_: Throwable) {}
         driver = null
         database = null
     }

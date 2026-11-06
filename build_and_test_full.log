@@ -1,0 +1,145 @@
+Calculating task graph as no cached configuration is available for tasks: :shared:data:generateCommonMainStoreDatabaseInterface :shared:data:desktopTest :app:testDebugUnitTest :app:assembleDebug
+
+> Configure project :app
+WARNING: The option setting 'android.experimental.disableCompileSdkChecks=true' is experimental.
+The current default is 'false'.
+
+> Task :shared:domain:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:data:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:data:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:domain:desktopProcessResources NO-SOURCE
+> Task :shared:domain:processDesktopMainResources SKIPPED
+> Task :shared:data:desktopTestProcessResources NO-SOURCE
+> Task :shared:data:processDesktopTestResources SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :shared:data:desktopProcessResources
+> Task :app:generateDebugBuildConfig
+> Task :shared:data:processDesktopMainResources SKIPPED
+> Task :shared:design-system:androidPreBuild UP-TO-DATE
+> Task :shared:design-system:preAndroidMainBuild UP-TO-DATE
+> Task :shared:design-system:generateAndroidMainEmptyResourceFiles
+> Task :app:generateDebugResources
+> Task :shared:domain:androidPreBuild UP-TO-DATE
+> Task :shared:domain:preAndroidMainBuild UP-TO-DATE
+> Task :shared:domain:generateAndroidMainEmptyResourceFiles
+> Task :app:packageDebugResources
+> Task :shared:design-system:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:design-system:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:design-system:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :shared:design-system:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :shared:design-system:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :shared:design-system:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :shared:design-system:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :shared:design-system:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :shared:design-system:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :shared:design-system:generateResourceAccessorsForCommonMain NO-SOURCE
+> Task :app:processDebugNavigationResources
+> Task :shared:design-system:generateActualResourceCollectorsForAndroidMain
+> Task :shared:design-system:generateComposeResClass
+> Task :shared:design-system:generateExpectResourceCollectorsForCommonMain
+> Task :app:parseDebugLocalResources
+> Task :app:generateDebugRFile
+> Task :app:javaPreCompileDebug
+> Task :shared:design-system:writeAndroidMainAarMetadata
+> Task :shared:domain:writeAndroidMainAarMetadata
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:compileDebugNavigationResources
+> Task :shared:domain:compileKotlinDesktop
+> Task :shared:domain:compileDesktopMainJava NO-SOURCE
+> Task :shared:domain:desktopMainClasses
+> Task :shared:domain:desktopJar
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :shared:design-system:processAndroidMainManifest
+> Task :shared:domain:processAndroidMainManifest
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:data:androidPreBuild UP-TO-DATE
+> Task :shared:data:preAndroidMainBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :shared:domain:compileAndroidMain
+> Task :app:mergeDebugAssets
+> Task :shared:domain:bundleAndroidMainClassesToCompileJar
+> Task :shared:data:processAndroidMainManifest
+> Task :app:processDebugUnitTestManifest
+> Task :shared:domain:bundleAndroidMainClassesToRuntimeJar
+> Task :shared:domain:processAndroidMainJavaRes
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:compressDebugAssets
+> Task :app:checkDebugDuplicateClasses
+> Task :app:desugarDebugFileDependencies
+> Task :shared:design-system:compileAndroidMain
+> Task :shared:design-system:bundleAndroidMainClassesToCompileJar
+> Task :app:mergeDebugResources
+> Task :shared:data:generateCommonMainStoreDatabaseInterface
+> Task :app:processDebugResources
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac
+
+> Task :shared:data:compileAndroidMain
+w: file:///app/applet/shared/data/src/androidMain/kotlin/com/storemanager/core/data/DatabaseDriverFactory.android.kt:5:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///app/applet/shared/data/src/commonMain/kotlin/com/storemanager/core/data/DatabaseDriverFactory.kt:5:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:generateDebugUnitTestConfig
+> Task :app:processDebugJavaRes
+> Task :shared:design-system:bundleAndroidMainClassesToRuntimeJar
+> Task :shared:design-system:processAndroidMainJavaRes
+> Task :shared:data:bundleAndroidMainClassesToCompileJar
+> Task :shared:data:bundleAndroidMainClassesToRuntimeJar
+> Task :shared:data:processAndroidMainJavaRes
+
+> Task :shared:data:compileKotlinDesktop
+w: file:///app/applet/shared/data/src/commonMain/kotlin/com/storemanager/core/data/DatabaseDriverFactory.kt:5:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///app/applet/shared/data/src/desktopMain/kotlin/com/storemanager/core/data/DatabaseDriverFactory.desktop.kt:39:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+
+> Task :shared:data:compileDesktopMainJava NO-SOURCE
+> Task :shared:data:desktopMainClasses
+> Task :shared:data:desktopJar
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:mergeDebugJavaResource
+> Task :shared:design-system:bundleLibRuntimeToDirAndroidMain
+> Task :shared:domain:bundleLibRuntimeToDirAndroidMain
+> Task :app:mergeLibDexDebug
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeDebugJniLibFolders
+> Task :shared:design-system:mergeAndroidMainJniLibFolders
+> Task :shared:design-system:mergeAndroidMainNativeLibs NO-SOURCE
+> Task :shared:design-system:copyAndroidMainJniLibsProjectOnly
+> Task :shared:domain:mergeAndroidMainJniLibFolders
+> Task :shared:domain:mergeAndroidMainNativeLibs NO-SOURCE
+> Task :shared:domain:copyAndroidMainJniLibsProjectOnly
+> Task :app:mergeDebugNativeLibs
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so. Run with --info option to learn more.
+
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:testDebugUnitTest
+> Task :shared:data:compileTestKotlinDesktop
+> Task :shared:data:compileDesktopTestJava NO-SOURCE
+> Task :shared:data:desktopTestClasses
+> Task :app:mergeExtDexDebug
+> Task :app:packageDebug
+> Task :app:assembleDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :shared:data:desktopTest
+
+[Incubating] Problems report is available at: file:///app/applet/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1m 40s
+85 actionable tasks: 85 executed
+Configuration cache entry stored.

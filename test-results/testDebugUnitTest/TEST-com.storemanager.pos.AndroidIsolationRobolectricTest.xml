@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.storemanager.pos.AndroidIsolationRobolectricTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-06T03:23:42.324Z" hostname="localhost" time="0.015">
+  <properties/>
+  <testcase name="testAndroidPOS_directDatabaseAccessForbidden" classname="com.storemanager.pos.AndroidIsolationRobolectricTest" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -5,9 +5,13 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(21)
 
-    jvm("desktop")
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+    }
 
     androidLibrary {
         namespace = "com.storemanager.core.data"
@@ -47,3 +51,9 @@ sqldelight {
         }
     }
 }
+
+tasks.named<Test>("desktopTest") {
+    reports.junitXml.required.set(true)
+    reports.html.required.set(true)
+}
+

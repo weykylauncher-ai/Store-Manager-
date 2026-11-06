@@ -6,9 +6,13 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(21)
 
-    jvm("desktop")
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+    }
 
     androidLibrary {
         namespace = "com.storemanager.core.designsystem"
