@@ -570,6 +570,82 @@ class StoreDatabaseIntegrationTest {
     }
 
     @Test
+    fun test20c_existingDb_rejectsAlteredTableConstraintWhilePreservingCountsAndUserData() {
+        // Seed customer data
+        db.storeDatabaseQueries.insertTenant("TENANT_CRITICAL_RECORDS", "Valuable Records Corp", 1)
+
+        // Modify table constraint on an existing table:
+        // E.g. in products table, create altered table with relaxed CHECK constraint or altered FK, copy data, swap table
+        // This keeps exact counts: 55 tables, 107 explicit indexes, 186 triggers!
+        // Seed existing record in tax_rates
+        driver.execute(null, "INSERT INTO tax_rates (id, tenant_id, name, rate_bps, is_active) VALUES ('TAX_01', 'TENANT_CRITICAL_RECORDS', 'Standard VAT', 1900, 1);", 0)
+
+        // Drop foreign keys/check constraints from tax_rates table or alter its schema definition
+        driver.execute(null, """
+            CREATE TABLE tax_rates_ALTERED (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                rate_bps INTEGER NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1
+                -- Missing REFERENCES tenants(id) and missing CHECK(rate_bps >= 0 AND rate_bps <= 10000)
+            );
+        """.trimIndent(), 0)
+
+        driver.execute(null, "INSERT INTO tax_rates_ALTERED SELECT id, tenant_id, name, rate_bps, is_active FROM tax_rates;", 0)
+        driver.execute(null, "DROP TABLE tax_rates;", 0)
+        driver.execute(null, "ALTER TABLE tax_rates_ALTERED RENAME TO tax_rates;", 0)
+
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+
+        // Verify counts remain identical to baseline: 55 tables, 107 explicit indexes, 186 triggers
+        val tableCount = driver.executeQuery<Long>(null, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';", { it.next(); QueryResult.Value(it.getLong(0) ?: 0L) }, 0).value
+        val indexCount = driver.executeQuery<Long>(null, "SELECT count(*) FROM sqlite_master WHERE type='index' AND sql IS NOT NULL;", { it.next(); QueryResult.Value(it.getLong(0) ?: 0L) }, 0).value
+        val triggerCount = driver.executeQuery<Long>(null, "SELECT count(*) FROM sqlite_master WHERE type='trigger';", { it.next(); QueryResult.Value(it.getLong(0) ?: 0L) }, 0).value
+        assertEquals("Total table count must still be 55", 55L, tableCount)
+        assertEquals("Total index count must still be 107", 107L, indexCount)
+        assertEquals("Total trigger count must still be 186", 186L, triggerCount)
+
+        driver.close()
+
+        // Reopening database with exact validation must REJECT the altered table definition
+        val reopenFactory = DatabaseDriverFactory(tempDbFile)
+        try {
+            reopenFactory.createDriver()
+            fail("Expected DatabaseValidationException when table constraints/definition are altered despite matching counts")
+        } catch (e: DatabaseValidationException) {
+            assertTrue(
+                "Error must indicate table constraint / definition alteration: ${e.message}",
+                e.message?.contains("definition/constraints altered") == true ||
+                e.message?.contains("fingerprint mismatch") == true
+            )
+        }
+
+        // Verify database file is preserved and user data is completely intact and uncorrupted
+        assertTrue("Database file must NOT be deleted when exact schema validation fails", tempDbFile.exists())
+        val rawDriver = JdbcSqliteDriver("jdbc:sqlite:${tempDbFile.absolutePath}")
+        try {
+            val preservedTenantName = rawDriver.executeQuery<String?>(
+                null,
+                "SELECT name FROM tenants WHERE id = 'TENANT_CRITICAL_RECORDS';",
+                { if (it.next().value) QueryResult.Value(it.getString(0)) else QueryResult.Value(null) },
+                0
+            ).value
+            assertEquals("User data must remain completely intact and unmodified", "Valuable Records Corp", preservedTenantName)
+
+            val preservedTaxRate = rawDriver.executeQuery<Long?>(
+                null,
+                "SELECT rate_bps FROM tax_rates WHERE id = 'TAX_01';",
+                { if (it.next().value) QueryResult.Value(it.getLong(0)) else QueryResult.Value(null) },
+                0
+            ).value
+            assertEquals("Tax rates record must remain completely intact and unmodified", 1900L, preservedTaxRate)
+        } finally {
+            rawDriver.close()
+        }
+    }
+
+    @Test
     fun test26_concurrentInitialization_trueCrossProcessExclusiveLock() {
         val crossProcessFile = File.createTempFile("test_cross_process_init_", ".db")
         if (crossProcessFile.exists()) crossProcessFile.delete()
@@ -813,10 +889,17 @@ class StoreDatabaseIntegrationTest {
             ).value
             assertEquals(55L, tableCount)
 
+            // Verify staging files were completely removed
+            val stagingFiles = checkpointSuccessFile.parentFile.listFiles { f ->
+                f.name.startsWith("${checkpointSuccessFile.name}.staging.")
+            }
+            assertTrue("Staging files must not exist after successful publication", stagingFiles.isNullOrEmpty())
+
             // Verify no sidecar files with uncheckpointed data
             val wal = File("${checkpointSuccessFile.absolutePath}-wal")
+            val shm = File("${checkpointSuccessFile.absolutePath}-shm")
             if (wal.exists()) {
-                assertTrue("WAL file must not contain uncheckpointed data", wal.length() >= 0L)
+                assertEquals("WAL sidecar should be empty if present right after checkpoint/open", 0L, wal.length())
             }
         } finally {
             d.close()
@@ -872,6 +955,37 @@ class StoreDatabaseIntegrationTest {
             }
             assertTrue("All staging files and sidecars must be cleaned up on failure", remainingStaging.isNullOrEmpty())
             File("${cleanupFailFile.parentFile.absolutePath}/${cleanupFailFile.name}.init.lock").takeIf { it.exists() }?.delete()
+        }
+    }
+
+    @Test
+    fun test28f_walSidecarDeletionFailure_atActualDeletionOperation_abortsPublicationAndPreservesTarget() {
+        val sidecarDeleteFailFile = File.createTempFile("test_sidecar_del_fail_", ".db")
+        if (sidecarDeleteFailFile.exists()) sidecarDeleteFailFile.delete()
+
+        val factory = DatabaseDriverFactory(sidecarDeleteFailFile).apply {
+            // Inject failure directly at the sidecar file deletion operation
+            sidecarDeleter = { file ->
+                // Return false simulating OS/permission failure to delete sidecar file
+                false
+            }
+        }
+
+        try {
+            factory.createDriver()
+            fail("Expected DatabaseInitializationException when sidecar deletion fails at deletion operation")
+        } catch (e: DatabaseInitializationException) {
+            assertTrue(
+                "Exception must indicate failed removal of staging sidecar: ${e.message}",
+                e.message?.contains("Failed to remove staging") == true ||
+                e.message?.contains("sidecar") == true
+            )
+        } finally {
+            assertFalse(
+                "Target database must never be published when sidecar deletion fails",
+                sidecarDeleteFailFile.exists()
+            )
+            File("${sidecarDeleteFailFile.parentFile.absolutePath}/${sidecarDeleteFailFile.name}.init.lock").takeIf { it.exists() }?.delete()
         }
     }
 

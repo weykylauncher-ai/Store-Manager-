@@ -30,6 +30,7 @@ data class SchemaObjectDefinition(
 
 class CanonicalSchemaBaseline(
     val tableNames: List<String>,
+    val tableDefinitions: Map<String, SchemaObjectDefinition>,
     val tableColumns: Map<String, List<ColumnSchemaInfo>>,
     val indexes: Map<String, SchemaObjectDefinition>,
     val triggers: Map<String, SchemaObjectDefinition>,
@@ -43,6 +44,7 @@ actual class DatabaseDriverFactory(
     internal var checkpointResultOverride: Triple<Long, Long, Long>? = null
     internal var simulateStagingWalSidecarFailure: Boolean = false
     internal var simulateSidecarCleanupFailure: Boolean = false
+    internal var sidecarDeleter: ((File) -> Boolean)? = null
     internal var simulateTargetCollisionDuringMove: Boolean = false
     internal var simulateTargetCollision0Byte: Boolean = false
     internal var customTriggerScript: String? = null
@@ -189,23 +191,20 @@ actual class DatabaseDriverFactory(
             if (simulateStagingWalSidecarFailure) {
                 stagingWal.writeBytes(byteArrayOf(1, 2, 3, 4, 5))
             }
-            if (stagingWal.exists()) {
-                if (stagingWal.length() > 0L) {
+            if (stagingWal.exists() || sidecarDeleter != null) {
+                if (stagingWal.exists() && stagingWal.length() > 0L) {
                     throw DatabaseInitializationException("Staging WAL sidecar contains uncheckpointed data (${stagingWal.length()} bytes)")
                 }
-                val deleted = stagingWal.delete()
-                if (!deleted && stagingWal.exists()) {
+                val deleted = sidecarDeleter?.invoke(stagingWal) ?: stagingWal.delete()
+                if (!deleted && (stagingWal.exists() || sidecarDeleter != null)) {
                     throw DatabaseInitializationException("Failed to remove staging WAL sidecar before publication")
                 }
             }
             if (stagingShm.exists()) {
-                val deleted = stagingShm.delete()
+                val deleted = sidecarDeleter?.invoke(stagingShm) ?: stagingShm.delete()
                 if (!deleted && stagingShm.exists()) {
                     throw DatabaseInitializationException("Failed to remove staging SHM sidecar before publication")
                 }
-            }
-            if (simulateSidecarCleanupFailure) {
-                throw DatabaseInitializationException("Simulated failure to remove staging sidecar file")
             }
 
             // 7. Secure Atomic Publication:
@@ -364,7 +363,7 @@ actual class DatabaseDriverFactory(
     fun validateExactSchema(driver: SqlDriver) {
         val baseline = canonicalBaseline
 
-        // 1. Verify exact Table Names
+        // 1. Verify exact Table Names and Table CREATE Statements
         val targetTables = queryTableNames(driver)
         if (targetTables.size.toLong() != EXPECTED_TABLE_COUNT) {
             throw DatabaseValidationException(
@@ -377,6 +376,18 @@ actual class DatabaseDriverFactory(
             throw DatabaseValidationException(
                 "Schema validation failed: table mismatch. Missing: $missingTables, Unexpected: $extraTables"
             )
+        }
+        val targetTableDefs = queryTableDefinitions(driver)
+        for (tableName in baseline.tableNames) {
+            val expDef = baseline.tableDefinitions[tableName]
+                ?: throw DatabaseValidationException("Schema validation failed: missing baseline definition for table '$tableName'")
+            val actDef = targetTableDefs[tableName]
+                ?: throw DatabaseValidationException("Schema validation failed: missing table definition for '$tableName'")
+            if (normalizeSql(actDef.sql) != normalizeSql(expDef.sql)) {
+                throw DatabaseValidationException(
+                    "Schema validation failed: table '$tableName' definition/constraints altered."
+                )
+            }
         }
 
         // 2. Verify Column Definitions & Constraints for each table
@@ -450,7 +461,7 @@ actual class DatabaseDriverFactory(
         }
 
         // 5. Verify Canonical Schema Fingerprint
-        val targetFingerprint = computeSchemaFingerprint(targetTables, driver, targetIndexes, targetTriggers)
+        val targetFingerprint = computeSchemaFingerprint(targetTables, targetTableDefs, driver, targetIndexes, targetTriggers)
         if (targetFingerprint != baseline.fingerprint) {
             throw DatabaseValidationException(
                 "Schema validation failed: canonical schema fingerprint mismatch (expected ${baseline.fingerprint}, found $targetFingerprint)"
@@ -560,6 +571,26 @@ actual class DatabaseDriverFactory(
             return cursor.value
         }
 
+        fun queryTableDefinitions(driver: SqlDriver): Map<String, SchemaObjectDefinition> {
+            val cursor = driver.executeQuery<Map<String, SchemaObjectDefinition>>(
+                null,
+                "SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
+                {
+                    val map = mutableMapOf<String, SchemaObjectDefinition>()
+                    while (it.next().value) {
+                        val type = it.getString(0) ?: "table"
+                        val name = it.getString(1) ?: ""
+                        val tblName = it.getString(2) ?: ""
+                        val sql = it.getString(3) ?: ""
+                        map[name] = SchemaObjectDefinition(type, name, tblName, sql)
+                    }
+                    QueryResult.Value(map)
+                },
+                0
+            )
+            return cursor.value
+        }
+
         fun queryIndexes(driver: SqlDriver): Map<String, SchemaObjectDefinition> {
             val cursor = driver.executeQuery<Map<String, SchemaObjectDefinition>>(
                 null,
@@ -602,6 +633,7 @@ actual class DatabaseDriverFactory(
 
         private fun computeSchemaFingerprint(
             tableNames: List<String>,
+            tableDefinitions: Map<String, SchemaObjectDefinition>,
             driver: SqlDriver,
             indexes: Map<String, SchemaObjectDefinition>,
             triggers: Map<String, SchemaObjectDefinition>
@@ -610,6 +642,9 @@ actual class DatabaseDriverFactory(
                 append("TABLES:")
                 for (t in tableNames.sorted()) {
                     append("[$t:")
+                    val tableSql = tableDefinitions[t]?.sql ?: ""
+                    append(normalizeSql(tableSql))
+                    append("|")
                     val cols = queryTableColumns(driver, t)
                     for (c in cols) {
                         append("(${c.name},${c.type},${c.notnull},${c.defaultValue},${c.pk})")
@@ -638,6 +673,7 @@ actual class DatabaseDriverFactory(
                 factory.executeTriggerScript(memDriver, triggerScript)
 
                 val tables = queryTableNames(memDriver)
+                val tableDefs = queryTableDefinitions(memDriver)
                 val tableColumns = mutableMapOf<String, List<ColumnSchemaInfo>>()
                 for (t in tables) {
                     tableColumns[t] = queryTableColumns(memDriver, t)
@@ -645,29 +681,11 @@ actual class DatabaseDriverFactory(
                 val indexes = queryIndexes(memDriver)
                 val triggers = queryTriggers(memDriver)
 
-                val rep = buildString {
-                    append("TABLES:")
-                    for (t in tables.sorted()) {
-                        append("[$t:")
-                        val cols = tableColumns[t] ?: emptyList()
-                        for (c in cols) {
-                            append("(${c.name},${c.type},${c.notnull},${c.defaultValue},${c.pk})")
-                        }
-                        append("]")
-                    }
-                    append(";INDEXES:")
-                    for ((name, idx) in indexes.toSortedMap()) {
-                        append("[$name:${idx.tblName}:${normalizeSql(idx.sql)}]")
-                    }
-                    append(";TRIGGERS:")
-                    for ((name, trg) in triggers.toSortedMap()) {
-                        append("[$name:${trg.tblName}:${normalizeSql(trg.sql)}]")
-                    }
-                }
-                val fingerprint = computeSha256(rep)
+                val fingerprint = computeSchemaFingerprint(tables, tableDefs, memDriver, indexes, triggers)
 
                 return CanonicalSchemaBaseline(
                     tableNames = tables,
+                    tableDefinitions = tableDefs,
                     tableColumns = tableColumns,
                     indexes = indexes,
                     triggers = triggers,
